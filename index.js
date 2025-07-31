@@ -39,7 +39,43 @@ app.post('/api/login', async (req, res) => {
 
   res.status(200).json({ message: 'Login successful!', user: data.user, session: data.session });
 });
+// 3. Add a new Lead
+app.post('/api/leads', async (req, res) => {
+  // Get the user's token from the request
+  const token = req.headers.authorization.split(' ')[1]; // Bearer <token>
+  const { data: { user } } = await supabase.auth.getUser(token);
 
+  if (!user) {
+    return res.status(401).json({ error: 'Unauthorized user' });
+  }
+
+  // Get lead details from the request body
+  const { clientName, contactInfo, status } = req.body;
+
+  if (!clientName || !status) {
+    return res.status(400).json({ error: 'Client name and status are required.' });
+  }
+
+  // Add the new lead to the database, linked to the logged-in user
+  const { data: newLead, error } = await supabase
+    .from('leads')
+    .insert([
+      { 
+        clientName: clientName, 
+        contactInfo: contactInfo, 
+        status: status, 
+        userId: user.id  // Linking the lead to the user
+      }
+    ])
+    .select();
+
+  if (error) {
+    console.error('Supabase error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.status(200).json({ message: 'Lead added successfully!', lead: newLead });
+});
 
 // --- Start Server ---
 const port = process.env.PORT || 3000;
